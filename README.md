@@ -1,2 +1,2 @@
 # hahhahahah make object now!
-[link](https://zerotixdev.github.io/objects/dist/index.html)
+[link](https://zerotixdev.github.io/objects/dist/)
