@@ -7,12 +7,25 @@ module.exports = class Object {
       this.height = height;
       this.selected = false;
    }
-   inside(object) {
-      return (
-         this.x < object.x + object.width &&
-         this.x + this.width > object.x &&
-         this.y < object.y + object.height &&
-         this.y + this.height > object.y
-      );
+   get right() {
+      return this.x + this.width;
+   }
+   get bottom() {
+      return this.y + this.height;
+   }
+   get middle() {
+      return { x: this.x + this.width / 2, y: this.y + this.height / 2 };
+   }
+   get left() {
+      return this.x;
+   }
+   get top() {
+      return this.y;
+   }
+   inside(x, y) {
+      return x > this.left && y > this.top && x < this.right && y < this.bottom;
+   }
+   unselect() {
+      return new Object(this.x, this.y, this.width, this.height);
    }
 };

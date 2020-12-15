@@ -6,6 +6,12 @@ module.exports = class State {
    merge(newState) {
       return new State({ objects: [...this.objects, ...newState.objects] });
    }
+   copy() {
+      return new State({ objects: [...this.objects] });
+   }
+   unselect() {
+      return new State({ objects: [...this.objects.map((object) => object.unselect())] });
+   }
    static empty() {
       return new State({ objects: [] });
    }

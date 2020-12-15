@@ -25,27 +25,62 @@ window.addEventListener('mousemove', mouseMove);
 window.addEventListener('mouseup', endDrag);
 window.addEventListener('keyup', keyActions);
 let drag = false;
-let selecting = false;
+let selected = false;
+let selectIndex = 0;
 let originX = 0;
 let originY = 0;
 function mouseDrag(event) {
    if (!drag && !replaying && !showSettings) {
-      drag = true;
-      originX = event.pageX;
-      originY = event.pageY - topPadding;
-      tempObject = new Object(Math.round(originX), Math.round(originY), 1, 1);
-      render(states[tick]);
+      if (modes[modeIndex] === 'create') {
+         drag = true;
+         originX = event.pageX;
+         originY = event.pageY - topPadding;
+         tempObject = new Object(Math.round(originX), Math.round(originY), 1, 1);
+         render(states[tick]);
+      } else if (modes[modeIndex] === 'move') {
+         const x = event.pageX;
+         const y = event.pageY - topPadding;
+         const currentState = states[tick].copy();
+         for (let i = currentState.objects.length - 1; i >= 0; i--) {
+            const object = currentState.objects[i];
+            if (object.selected) continue;
+            if (!selected && object.inside(x, y)) {
+               selected = true;
+               selectIndex = i;
+               tick++;
+               states[tick] = currentState.copy();
+               states[tick].objects[selectIndex].selected = true;
+               render(states[tick]);
+               break;
+            }
+         }
+      }
    }
 }
 function mouseMove() {
-   if (drag && !replaying && !showSettings) {
+   if ((drag || selected) && !replaying && !showSettings) {
       if (
          tempObject != null &&
-         (event.pageX - originX !== tempObject.width || event.pageY - topPadding - originY !== tempObject.height)
+         (event.pageX - originX !== tempObject.width || event.pageY - topPadding - originY !== tempObject.height) &&
+         modes[modeIndex] === 'create'
       ) {
          tempObject.width = Math.round(event.pageX - originX);
          tempObject.height = Math.round(event.pageY - topPadding - originY);
          render(states[tick]);
+      }
+      if (modes[modeIndex] === 'move' && selected) {
+         const center = states[tick].copy().objects[selectIndex].middle;
+         if (
+            Math.round(event.pageX) !== Math.round(center.x) ||
+            Math.round(event.pageY - topPadding) !== Math.round(center.y)
+         ) {
+            tick++;
+            const newState = states[tick - 1].copy();
+            newState.objects[selectIndex].x += event.pageX - center.x;
+            newState.objects[selectIndex].y += event.pageY - topPadding - center.y;
+            states[tick] = newState;
+            render(states[tick]);
+         }
       }
    }
 }
@@ -54,17 +89,23 @@ function endDrag() {
    drag = false;
    if (modes[modeIndex] === 'create') {
       tick++;
+      if (Math.sign(tempObject.width) === -1) {
+         tempObject.x -= Math.abs(tempObject.width);
+         tempObject.width *= -1;
+      }
+      if (Math.sign(tempObject.height) === -1) {
+         tempObject.y -= Math.abs(tempObject.height);
+         tempObject.height *= -1;
+      }
       states[tick] = states[tick - 1].merge({
          objects: [tempObject],
       });
       tempObject = null;
-   }
-   if (modes[modeIndex] === 'move') {
-      selecting = true;
-      for (const object of [...states[tick].objects]) {
-         if (tempObject.inside(object)) {
-            object.selected = true;
-         }
+   } else if (modes[modeIndex] === 'move') {
+      if (selected) {
+         tick++;
+         states[tick] = states[tick - 1].copy().unselect();
+         selected = false;
       }
    }
    render(states[tick]);
@@ -117,10 +158,10 @@ function spawnRandomObjects() {
       tick++;
       objects.push(
          new Object(
-            Math.round(Math.random() * canvas.width),
-            Math.round(Math.random() * canvas.height),
-            Math.round(Math.random() * (Math.random() * 600 + 100)),
-            Math.round(Math.random() * (Math.random() * 600 + 100))
+            Math.round(Math.random() * canvas.width - 200),
+            Math.round(Math.random() * canvas.height - 200),
+            Math.round(Math.random() * (Math.random() * 300 + 50)),
+            Math.round(Math.random() * (Math.random() * 300 + 50))
          )
       );
       states[tick] = states[tick - 1].merge({ objects });
@@ -148,7 +189,8 @@ function replayStates() {
    const maxTick = tick;
    tick = 0;
    tempObject = null;
-   render(states[tick]);
+   drag = false;
+   selected = false;
    const start = Date.now();
    const replayRate = 10;
    let lastTick = tick;
