@@ -10,4 +10,10 @@ body {
 canvas {
 	position:absolute;
 	background:black;
+	bottom:0;
+	z-index:0;
+}
+select {
+	z-index:2;
+	padding:5px;
 }

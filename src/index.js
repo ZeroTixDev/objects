@@ -4,12 +4,16 @@ const Object = require('./object');
 const State = require('./state');
 const canvas = document.querySelector('.canvas');
 const ctx = canvas.getContext('2d');
+const modes = ['create', 'move'];
+const topPadding = 25;
+makeDropdown(modes);
 resizeCanvas(canvas);
 let tick = 0;
 let tempObject = null;
 let replaying = false;
 let showSettings = false;
 let states = [];
+let modeIndex = 0;
 states.push(State.empty());
 render(states[tick]);
 window.addEventListener('resize', () => {
@@ -21,22 +25,26 @@ window.addEventListener('mousemove', mouseMove);
 window.addEventListener('mouseup', endDrag);
 window.addEventListener('keyup', keyActions);
 let drag = false;
+let selecting = false;
 let originX = 0;
 let originY = 0;
 function mouseDrag(event) {
    if (!drag && !replaying && !showSettings) {
       drag = true;
       originX = event.pageX;
-      originY = event.pageY;
-      tempObject = new Object(originX, originY, 1, 1);
+      originY = event.pageY - topPadding;
+      tempObject = new Object(Math.round(originX), Math.round(originY), 1, 1);
       render(states[tick]);
    }
 }
 function mouseMove() {
    if (drag && !replaying && !showSettings) {
-      if (event.pageX - originX !== tempObject.width || event.pageY - originY !== tempObject.height) {
-         tempObject.width = event.pageX - originX;
-         tempObject.height = event.pageY - originY;
+      if (
+         tempObject != null &&
+         (event.pageX - originX !== tempObject.width || event.pageY - topPadding - originY !== tempObject.height)
+      ) {
+         tempObject.width = Math.round(event.pageX - originX);
+         tempObject.height = Math.round(event.pageY - topPadding - originY);
          render(states[tick]);
       }
    }
@@ -44,11 +52,21 @@ function mouseMove() {
 function endDrag() {
    if (replaying || showSettings) return;
    drag = false;
-   tick++;
-   states[tick] = states[tick - 1].merge({
-      objects: [tempObject],
-   });
-   tempObject = null;
+   if (modes[modeIndex] === 'create') {
+      tick++;
+      states[tick] = states[tick - 1].merge({
+         objects: [tempObject],
+      });
+      tempObject = null;
+   }
+   if (modes[modeIndex] === 'move') {
+      selecting = true;
+      for (const object of [...states[tick].objects]) {
+         if (tempObject.inside(object)) {
+            object.selected = true;
+         }
+      }
+   }
    render(states[tick]);
 }
 function render(state) {
@@ -59,11 +77,17 @@ function render(state) {
       ctx.lineWidth = 4;
       for (const object of state.objects) {
          if (!object) return;
+         if (object.selected) ctx.strokeStyle = 'blue';
+         else ctx.strokeStyle = 'black';
          ctx.fillRect(object.x, object.y, object.width, object.height);
          ctx.strokeRect(object.x, object.y, object.width, object.height);
       }
       if (tempObject != null) {
-         ctx.strokeStyle = 'rgba(200, 0, 0, 0.8)';
+         if (modes[modeIndex] === 'create') {
+            ctx.strokeStyle = 'rgba(200, 0, 0, 0.8)';
+         } else if (modes[modeIndex] === 'move') {
+            ctx.strokeStyle = '#314fd4';
+         }
          ctx.strokeRect(tempObject.x, tempObject.y, tempObject.width, tempObject.height);
       }
       if (showSettings) {
@@ -87,16 +111,16 @@ function render(state) {
    });
 }
 function spawnRandomObjects() {
-   if (replaying || showSettings) return;
+   if (replaying || showSettings || modes[modeIndex] !== 'create') return;
    const objects = [];
    for (let i = 0; i < 5; i++) {
       tick++;
       objects.push(
          new Object(
-            Math.random() * canvas.width,
-            Math.random() * canvas.height,
-            Math.random() * (Math.random() * 600 + 100),
-            Math.random() * (Math.random() * 600 + 100)
+            Math.round(Math.random() * canvas.width),
+            Math.round(Math.random() * canvas.height),
+            Math.round(Math.random() * (Math.random() * 600 + 100)),
+            Math.round(Math.random() * (Math.random() * 600 + 100))
          )
       );
       states[tick] = states[tick - 1].merge({ objects });
@@ -168,5 +192,21 @@ function keyActions({ keyCode }) {
 }
 function resizeCanvas(canvas) {
    canvas.width = window.innerWidth;
-   canvas.height = window.innerHeight;
+   canvas.height = window.innerHeight - topPadding;
+}
+function makeDropdown(modes) {
+   const selectElement = document.createElement('select');
+   selectElement.classList.add('mode');
+   for (const mode of modes) {
+      const option = document.createElement('option');
+      option.setAttribute('value', '');
+      option.innerText = mode;
+      selectElement.appendChild(option);
+   }
+   selectElement.addEventListener('change', () => {
+      if (modes[modeIndex] === selectElement.selectedOptions[0].textContent) return;
+      modeIndex++;
+      modeIndex = modeIndex % modes.length;
+   });
+   document.body.appendChild(selectElement);
 }

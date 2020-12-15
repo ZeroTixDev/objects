@@ -4,8 +4,7 @@ module.exports = class State {
       this.objects = state.objects;
    }
    merge(newState) {
-      const objects = [...this.objects, ...newState.objects];
-      return new State({ objects });
+      return new State({ objects: [...this.objects, ...newState.objects] });
    }
    static empty() {
       return new State({ objects: [] });
