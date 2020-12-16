@@ -1,5 +1,5 @@
 'use strict';
-module.exports = class Object {
+module.exports = class Rectangle {
    constructor(x, y, width, height) {
       this.x = x;
       this.y = y;
@@ -23,10 +23,10 @@ module.exports = class Object {
       return this.y;
    }
    move(x, y) {
-      return new Object(this.x + x, this.y + y, this.width, this.height);
+      return new Rectangle(this.x + x, this.y + y, this.width, this.height);
    }
    select() {
-      const object = new Object(this.x, this.y, this.width, this.height);
+      const object = new Rectangle(this.x, this.y, this.width, this.height);
       object.selected = true;
       return object;
    }
@@ -34,6 +34,6 @@ module.exports = class Object {
       return x > this.left && y > this.top && x < this.right && y < this.bottom;
    }
    copy() {
-      return new Object(this.x, this.y, this.width, this.height);
+      return new Rectangle(this.x, this.y, this.width, this.height);
    }
 };

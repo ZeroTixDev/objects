@@ -1,15 +1,49 @@
 'use strict';
 require('./style.css');
-const Object = require('./object');
+const Rectangle = require('./rectangle');
 const State = require('./state');
 const canvas = document.querySelector('.canvas');
 const ctx = canvas.getContext('2d');
 const modes = ['create', 'move'];
-const actions = ['clear', 'replay', 'clear history', 'spawn random objects', 'settings'];
+const actions = [
+   {
+      name: 'clear',
+      click: () => {
+         clear();
+      },
+      allow: ['create'],
+   },
+   {
+      name: 'replay',
+      click: () => {
+         replayStates();
+      },
+      allow: ['create', 'move'],
+   },
+   {
+      name: 'clear history',
+      click: () => {
+         clearHistory();
+      },
+      allow: ['create'],
+   },
+   {
+      name: 'spawn random objects',
+      click: () => {
+         spawnRandomObjects();
+      },
+      allow: ['create'],
+   },
+   {
+      name: 'settings',
+      click: () => {
+         toggleSettings();
+      },
+      allow: ['create', 'move'],
+   },
+];
+const sliders = [{ name: 'replay rate', min: 1, max: 40, default: 15 }];
 const topPadding = 25;
-makeDropdown(modes);
-makeButtons(actions);
-resizeCanvas(canvas);
 let tick = 0;
 let tempObject = null;
 let replaying = false;
@@ -18,14 +52,20 @@ let states = [];
 let modeIndex = 0;
 states.push(State.empty());
 render(states[tick]);
+makeDropdown(modes);
+makeButtons(actions);
+resizeCanvas(canvas);
+makeSliders(sliders);
 window.addEventListener('resize', () => {
    resizeCanvas(canvas);
    render(states[tick]);
 });
-window.addEventListener('mousedown', mouseDrag);
-window.addEventListener('mousemove', mouseMove);
-window.addEventListener('mouseup', endDrag);
+
+canvas.addEventListener('mousedown', mouseDrag);
+canvas.addEventListener('mousemove', mouseMove);
+canvas.addEventListener('mouseup', endDrag);
 window.addEventListener('keyup', keyActions);
+
 let drag = false;
 let selected = false;
 let selectIndex = 0;
@@ -33,13 +73,14 @@ let originX = 0;
 let originY = 0;
 let pivotX = 0;
 let pivotY = 0;
+
 function mouseDrag(event) {
    if (!drag && !replaying && !showSettings) {
       if (modes[modeIndex] === 'create') {
          drag = true;
          originX = event.pageX;
          originY = event.pageY - topPadding;
-         tempObject = new Object(Math.round(originX), Math.round(originY), 1, 1);
+         tempObject = new Rectangle(Math.round(originX), Math.round(originY), 1, 1);
          render(states[tick]);
       } else if (modes[modeIndex] === 'move') {
          const x = event.pageX;
@@ -64,6 +105,7 @@ function mouseDrag(event) {
       }
    }
 }
+
 function mouseMove() {
    if ((drag || selected) && !replaying && !showSettings) {
       if (
@@ -100,23 +142,28 @@ function mouseMove() {
       }
    }
 }
+
 function endDrag() {
    if (replaying || showSettings) return;
    drag = false;
    if (modes[modeIndex] === 'create') {
-      tick++;
-      if (Math.sign(tempObject.width) === -1) {
-         tempObject.x -= Math.abs(tempObject.width);
-         tempObject.width *= -1;
+      if (tempObject !== null) {
+         tick++;
+         if (Math.sign(tempObject.width) === -1) {
+            tempObject.x -= Math.abs(tempObject.width);
+            tempObject.width *= -1;
+            tempObject.width = Math.max(tempObject.width, 1);
+         }
+         if (Math.sign(tempObject.height) === -1) {
+            tempObject.y -= Math.abs(tempObject.height);
+            tempObject.height *= -1;
+            tempObject.height = Math.max(tempObject.height, 1);
+         }
+         states[tick] = states[tick - 1].merge({
+            objects: [tempObject],
+         });
+         tempObject = null;
       }
-      if (Math.sign(tempObject.height) === -1) {
-         tempObject.y -= Math.abs(tempObject.height);
-         tempObject.height *= -1;
-      }
-      states[tick] = states[tick - 1].merge({
-         objects: [tempObject],
-      });
-      tempObject = null;
    } else if (modes[modeIndex] === 'move') {
       if (selected) {
          tick++;
@@ -174,7 +221,7 @@ function spawnRandomObjects() {
    for (let i = 0; i < 5; i++) {
       tick++;
       objects.push(
-         new Object(
+         new Rectangle(
             Math.round(Math.random() * canvas.width - 200),
             Math.round(Math.random() * canvas.height - 200),
             Math.round(Math.random() * (Math.random() * 300 + 50)),
@@ -209,13 +256,15 @@ function replayStates() {
    drag = false;
    selected = false;
    const start = Date.now();
-   const replayRate = 20;
+   const replayRate = document.querySelector('#replay_rate').value || 15;
    let lastTick = tick;
+   checkToDisableButtons();
    function replay() {
       const expectedTick = Math.ceil((Date.now() - start) * (replayRate / 1000));
       while (tick < expectedTick) {
          if (tick >= maxTick) {
             replaying = false;
+            checkToDisableButtons();
             tick = maxTick;
             render(states[tick]);
             return;
@@ -253,6 +302,25 @@ function resizeCanvas(canvas) {
    canvas.width = window.innerWidth;
    canvas.height = window.innerHeight - topPadding;
 }
+function checkToDisableButtons() {
+   const list = document.querySelectorAll('button') || {};
+   for (const i of Object.keys(list)) {
+      const button = list[i];
+      if (replaying && actions[i].name !== 'replay') {
+         button.classList.add('disabled');
+         continue;
+      } else if (replaying && actions[i].name == 'replay') {
+         button.classList.remove('disabled');
+         continue;
+      }
+      if (actions[i].allow.indexOf(modes[modeIndex]) > -1) {
+         button.classList.remove('disabled');
+      } else {
+         button.classList.add('disabled');
+      }
+   }
+   console.log('checked');
+}
 function makeDropdown(modes) {
    const selectElement = document.createElement('select');
    selectElement.classList.add('mode');
@@ -263,24 +331,43 @@ function makeDropdown(modes) {
       selectElement.appendChild(option);
    }
    selectElement.addEventListener('change', () => {
-      if (modes[modeIndex] === selectElement.selectedOptions[0].textContent) return;
-      modeIndex++;
-      modeIndex = modeIndex % modes.length;
+      if (selectElement.selectedOptions[0].textContent === modes[modeIndex]) return;
+      for (const index in selectElement) {
+         const option = selectElement[index];
+         if (option.selected) {
+            modeIndex = index;
+            checkToDisableButtons();
+            break;
+         }
+      }
    });
    document.querySelector('.top').appendChild(selectElement);
 }
 function makeButtons(actions) {
    for (const action of actions) {
       const button = document.createElement('button');
-      button.innerText = action;
+      button.innerText = action.name;
       button.addEventListener('click', () => {
-         const action = button.innerText;
-         if (action === 'clear') clear();
-         else if (action === 'spawn random objects') spawnRandomObjects();
-         else if (action === 'settings') toggleSettings();
-         else if (action === 'replay') replayStates();
-         else if (action === 'clear history') clearHistory();
+         action.click();
       });
       document.querySelector('.top').appendChild(button);
+   }
+}
+// example @param  [ { name , min, max, default } ]
+function makeSliders(sliders) {
+   for (const object of sliders) {
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = object.min;
+      slider.max = object.max;
+      slider.value = object.default;
+      slider.id = object.name.split(' ').join('_');
+      const span = document.createElement('span');
+      span.innerText = object.name + ` [${slider.value}]`;
+      slider.addEventListener('input', () => {
+         span.innerText = object.name + ` [${slider.value}]`;
+      });
+      document.querySelector('.top').appendChild(span);
+      document.querySelector('.top').appendChild(slider);
    }
 }
