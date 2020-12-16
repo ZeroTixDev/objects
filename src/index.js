@@ -29,6 +29,8 @@ let selected = false;
 let selectIndex = 0;
 let originX = 0;
 let originY = 0;
+let pivotX = 0;
+let pivotY = 0;
 function mouseDrag(event) {
    if (!drag && !replaying && !showSettings) {
       if (modes[modeIndex] === 'create') {
@@ -50,6 +52,8 @@ function mouseDrag(event) {
                tick++;
                states[tick] = currentState.copy();
                states[tick].objects[selectIndex].selected = true;
+               pivotX = event.pageX;
+               pivotY = event.pageY - topPadding;
                render(states[tick]);
                break;
             }
@@ -69,16 +73,16 @@ function mouseMove() {
          render(states[tick]);
       }
       if (modes[modeIndex] === 'move' && selected) {
-         const center = states[tick].copy().objects[selectIndex].middle;
          if (
-            Math.round(event.pageX) !== Math.round(center.x) ||
-            Math.round(event.pageY - topPadding) !== Math.round(center.y)
+            Math.round(event.pageX) !== Math.round(pivotX) ||
+            Math.round(event.pageY - topPadding) !== Math.round(pivotY)
          ) {
             tick++;
-            const newState = states[tick - 1].copy();
-            newState.objects[selectIndex].x += event.pageX - center.x;
-            newState.objects[selectIndex].y += event.pageY - topPadding - center.y;
-            states[tick] = newState;
+            states[tick] = states[tick - 1].copy();
+            states[tick].objects[selectIndex].x += event.pageX - pivotX;
+            states[tick].objects[selectIndex].y += event.pageY - topPadding - pivotY;
+            pivotX = event.pageX;
+            pivotY = event.pageY - topPadding;
             render(states[tick]);
          }
       }
