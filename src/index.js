@@ -5,8 +5,10 @@ const State = require('./state');
 const canvas = document.querySelector('.canvas');
 const ctx = canvas.getContext('2d');
 const modes = ['create', 'move'];
+const actions = ['clear', 'replay', 'clear history', 'spawn random objects', 'settings'];
 const topPadding = 25;
 makeDropdown(modes);
+makeButtons(actions);
 resizeCanvas(canvas);
 let tick = 0;
 let tempObject = null;
@@ -145,13 +147,14 @@ function render(state) {
          ctx.shadowBlur = 0;
          ctx.textAlign = 'center';
          ctx.textBaseline = 'middle';
-         ctx.font = '50px Arial';
+         ctx.font = '40px Arial';
          ctx.fillStyle = 'black';
-         ctx.fillText('S for settings', canvas.width / 2, canvas.height / 2 - 200);
+         ctx.fillText('Keybinds', canvas.width / 2, canvas.height / 2 - 250);
+         ctx.fillText('S for settings', canvas.width / 2, canvas.height / 2 - 150);
          ctx.fillText('R for replay', canvas.width / 2, canvas.height / 2 - 100);
-         ctx.fillText('C for clear', canvas.width / 2, canvas.height / 2);
-         ctx.fillText('Space for spawn objects', canvas.width / 2, canvas.height / 2 + 100);
-         ctx.fillText('H for clear history', canvas.width / 2, canvas.height / 2 + 200);
+         ctx.fillText('C for clear', canvas.width / 2, canvas.height / 2 - 50);
+         ctx.fillText('Space for spawn objects', canvas.width / 2, canvas.height / 2);
+         ctx.fillText('H for clear history', canvas.width / 2, canvas.height / 2 + 50);
       }
    });
 }
@@ -254,5 +257,20 @@ function makeDropdown(modes) {
       modeIndex++;
       modeIndex = modeIndex % modes.length;
    });
-   document.body.appendChild(selectElement);
+   document.querySelector('.top').appendChild(selectElement);
+}
+function makeButtons(actions) {
+   for (const action of actions) {
+      const button = document.createElement('button');
+      button.innerText = action;
+      button.addEventListener('click', () => {
+         const action = button.innerText;
+         if (action === 'clear') clear();
+         else if (action === 'spawn random objects') spawnRandomObjects();
+         else if (action === 'settings') toggleSettings();
+         else if (action === 'replay') replayStates();
+         else if (action === 'clear history') clearHistory();
+      });
+      document.querySelector('.top').appendChild(button);
+   }
 }
