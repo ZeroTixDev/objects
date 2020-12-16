@@ -22,10 +22,18 @@ module.exports = class Object {
    get top() {
       return this.y;
    }
+   move(x, y) {
+      return new Object(this.x + x, this.y + y, this.width, this.height);
+   }
+   select() {
+      const object = new Object(this.x, this.y, this.width, this.height);
+      object.selected = true;
+      return object;
+   }
    inside(x, y) {
       return x > this.left && y > this.top && x < this.right && y < this.bottom;
    }
-   unselect() {
+   copy() {
       return new Object(this.x, this.y, this.width, this.height);
    }
 };

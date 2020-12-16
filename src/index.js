@@ -52,8 +52,9 @@ function mouseDrag(event) {
                selected = true;
                selectIndex = i;
                tick++;
-               states[tick] = currentState.copy();
-               states[tick].objects[selectIndex].selected = true;
+               const newState = states[tick - 1].copy();
+               newState.objects[selectIndex] = newState.objects[selectIndex].select();
+               states[tick] = newState;
                pivotX = event.pageX;
                pivotY = event.pageY - topPadding;
                render(states[tick]);
@@ -75,14 +76,23 @@ function mouseMove() {
          render(states[tick]);
       }
       if (modes[modeIndex] === 'move' && selected) {
+         const xDistance = Math.abs(
+            states[tick].objects[selectIndex].x - (states[tick].objects[selectIndex].x + event.pageX - pivotX)
+         );
+         const yDistance = Math.abs(
+            states[tick].objects[selectIndex].y -
+               (states[tick].objects[selectIndex].y + event.pageY - topPadding - pivotY)
+         );
          if (
-            Math.round(event.pageX) !== Math.round(pivotX) ||
-            Math.round(event.pageY - topPadding) !== Math.round(pivotY)
+            (Math.round(event.pageX) !== Math.round(pivotX) ||
+               Math.round(event.pageY - topPadding) !== Math.round(pivotY)) &&
+            (xDistance > 10 || yDistance > 10)
          ) {
             tick++;
             states[tick] = states[tick - 1].copy();
-            states[tick].objects[selectIndex].x += event.pageX - pivotX;
-            states[tick].objects[selectIndex].y += event.pageY - topPadding - pivotY;
+            states[tick].objects[selectIndex] = states[tick].objects[selectIndex]
+               .move(event.pageX - pivotX, event.pageY - topPadding - pivotY)
+               .select();
             pivotX = event.pageX;
             pivotY = event.pageY - topPadding;
             render(states[tick]);
@@ -110,7 +120,7 @@ function endDrag() {
    } else if (modes[modeIndex] === 'move') {
       if (selected) {
          tick++;
-         states[tick] = states[tick - 1].copy().unselect();
+         states[tick] = states[tick - 1].unselect();
          selected = false;
       }
    }
@@ -199,7 +209,7 @@ function replayStates() {
    drag = false;
    selected = false;
    const start = Date.now();
-   const replayRate = 10;
+   const replayRate = 20;
    let lastTick = tick;
    function replay() {
       const expectedTick = Math.ceil((Date.now() - start) * (replayRate / 1000));

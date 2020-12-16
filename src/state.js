@@ -10,7 +10,7 @@ module.exports = class State {
       return new State({ objects: [...this.objects] });
    }
    unselect() {
-      return new State({ objects: [...this.objects.map((object) => object.unselect())] });
+      return new State({ objects: [...this.objects.map((object) => object.copy())] });
    }
    static empty() {
       return new State({ objects: [] });
